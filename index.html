@@ -1,5 +1,10 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
 <title>Controle PROJUR</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
 <style>
@@ -25,7 +30,9 @@
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
 .wrap { max-width: 1280px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -147,6 +154,14 @@ dialog::backdrop { background: rgb(10 14 20 / .45); }
 .toast.crit { background: var(--crit); color: #fff; }
 .team-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-top: 12px; }
 .team-form .field { flex: 1 1 140px; }
+.user { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+.user span { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth { max-width: 400px; margin: 8vh auto 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 28px 24px; display: grid; gap: 14px; }
+.auth h1 { font-size: 22px; }
+.auth p { margin: 0; color: var(--muted); }
+.auth .actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.linklike { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; font-size: 13px; }
+input[type="email"], input[type="password"] { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r); padding: 7px 10px; min-width: 0; width: 100%; }
 
 @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 820px) {
@@ -163,21 +178,55 @@ dialog::backdrop { background: rgb(10 14 20 / .45); }
 }
 @media (prefers-reduced-motion: no-preference) { .hbars .br { transition: width .3s ease; } }
 </style>
+</head>
+<body>
 
 <header class="top">
   <div class="wrap">
     <div class="brand"><b>PROJUR</b><small>Procuradoria Jurídica · Câmara Municipal de Fortaleza</small></div>
-    <nav class="tabs" aria-label="Seções">
+    <nav class="tabs" aria-label="Seções" data-app>
       <button type="button" data-view="painel">Painel</button>
       <button type="button" data-view="processos">Processos</button>
       <button type="button" data-view="equipe">Equipe</button>
     </nav>
-    <button type="button" class="btn primary" id="btn-novo">Novo processo</button>
+    <button type="button" class="btn primary" id="btn-novo" data-app>Novo processo</button>
+    <div class="user" id="user" hidden>
+      <span id="user-email"></span>
+      <button type="button" class="btn ghost sm" id="btn-trocar-senha">Trocar senha</button>
+      <button type="button" class="btn ghost sm" id="btn-sair">Sair</button>
+    </div>
   </div>
 </header>
 
 <main class="wrap">
   <div id="status" class="note" hidden></div>
+
+  <form class="auth" id="v-login" hidden>
+    <div><div class="eyebrow">Acesso restrito</div><h1>Entrar no Controle PROJUR</h1></div>
+    <label class="field"><span>E-mail</span><input type="email" id="l-email" autocomplete="username" required></label>
+    <label class="field"><span>Senha</span><input type="password" id="l-senha" autocomplete="current-password" required></label>
+    <div class="actions">
+      <button type="button" class="linklike" id="l-esqueci">Esqueci minha senha</button>
+      <button type="submit" class="btn primary" id="l-entrar">Entrar</button>
+    </div>
+    <p class="hint" id="l-msg"></p>
+  </form>
+
+  <form class="auth" id="v-senha" hidden>
+    <div><div class="eyebrow">Sua conta</div><h1>Definir nova senha</h1></div>
+    <label class="field"><span>Nova senha (mínimo 8 caracteres)</span><input type="password" id="s-nova" autocomplete="new-password" minlength="8" required></label>
+    <label class="field"><span>Repita a nova senha</span><input type="password" id="s-conf" autocomplete="new-password" minlength="8" required></label>
+    <div class="actions">
+      <button type="button" class="linklike" id="s-cancelar">Voltar</button>
+      <button type="submit" class="btn primary">Salvar senha</button>
+    </div>
+  </form>
+
+  <div class="auth" id="v-negado" hidden>
+    <div><div class="eyebrow">Acesso restrito</div><h1>E-mail sem autorização</h1></div>
+    <p>A conta <b id="n-email"></b> entrou, mas não está na lista de membros da PROJUR. Peça a quem administra o sistema para incluir este e-mail.</p>
+    <div class="actions"><span></span><button type="button" class="btn" id="n-sair">Sair</button></div>
+  </div>
 
   <section id="v-painel" hidden>
     <div class="head">
@@ -191,7 +240,7 @@ dialog::backdrop { background: rgb(10 14 20 / .45); }
             <option value="tudo">Todo o período</option>
           </select>
         </label>
-        <button type="button" class="btn" id="btn-exp-periodo" hidden>Exportar processos do período (CSV)</button>
+        <button type="button" class="btn" id="btn-exp-periodo">Exportar processos do período (CSV)</button>
       </div>
     </div>
     <div class="kpis" id="kpis"></div>
@@ -218,7 +267,7 @@ dialog::backdrop { background: rgb(10 14 20 / .45); }
   <section id="v-processos" hidden>
     <div class="head">
       <div><div class="eyebrow">Cadastro</div><h1>Processos e demandas</h1></div>
-      <div class="tools"><button type="button" class="btn" id="btn-exp-lista" hidden>Exportar lista (CSV)</button></div>
+      <div class="tools"><button type="button" class="btn" id="btn-exp-lista">Exportar lista (CSV)</button></div>
     </div>
     <div class="filters">
       <label class="field q"><span>Buscar</span><input type="search" id="f-q" placeholder="Número, interessado, assunto, parecer…" autocomplete="off"></label>
@@ -318,8 +367,10 @@ dialog::backdrop { background: rgb(10 14 20 / .45); }
 <div id="tip" hidden></div>
 <div id="toast" class="toast" hidden></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
 <script>
-const TIPOS = ["Solicitação - Servidor", "Procedimento Interno", "Procedimento MP", "Processo Judicial", "Licitação - Pregão",
+const TIPOS =["Solicitação - Servidor", "Procedimento Interno", "Procedimento MP", "Processo Judicial", "Licitação - Pregão",
   "Licitação - Dispensa", "Licitação - Inexigibilidade", "Licitação - Concorrência", "Cooperação/Convênio/Credenciamento",
   "Patrocínio/Fomento", "Ouvidoria", "Procedimento legislativo"];
 const SITS = ["Em análise", "Acompanhando", "Esperando", "Prazo aberto", "Finalizado"];
@@ -327,8 +378,8 @@ const SIT_CLASS = { "Finalizado": "s-fin", "Acompanhando": "s-acomp", "Esperando
 const NUM_LABEL = { interno: "Int.", protocolo: "CMFOR360", cnj: "CNJ", mp: "MP", outro: "" };
 
 const S = {
-  procs: new Map(), ferias: [], equipe: [], view: "painel", loaded: false, canWrite: true,
-  db: null, downloads: null, f: { q: "", tipo: "", resp: "", sit: "" }, sort: { k: "seq", dir: -1 },
+  procs: new Map(), ferias: [], equipe: [], view: "painel", loaded: false, canWrite: false,
+  auth: "carregando", email: "", f: { q: "", tipo: "", resp: "", sit: "" }, sort: { k: "seq", dir: -1 },
   periodo: "ano", editId: null, draftAnd: [], chain: Promise.resolve()
 };
 const $ = (s) => document.querySelector(s);
@@ -399,13 +450,20 @@ function intervalo() {
 
 /* ---------- render geral ---------- */
 function render() {
+  const ok = S.auth === "ok";
+  $("#v-login").hidden = S.auth !== "login";
+  $("#v-senha").hidden = S.auth !== "senha";
+  $("#v-negado").hidden = S.auth !== "negado";
+  $("#user").hidden = !S.email || S.auth === "login";
+  $("#user-email").textContent = S.email;
+  document.querySelectorAll("[data-app]").forEach((el) => (el.hidden = !ok));
   for (const v of ["painel", "processos", "equipe"]) {
-    $("#v-" + v).hidden = S.view !== v;
+    $("#v-" + v).hidden = !ok || S.view !== v;
     document.querySelector(`[data-view="${v}"]`).setAttribute("aria-current", S.view === v ? "page" : "false");
   }
   document.querySelectorAll("[data-write]").forEach((el) => (el.hidden = !S.canWrite));
-  $("#btn-novo").hidden = !S.canWrite;
-  $("#btn-exp-lista").hidden = $("#btn-exp-periodo").hidden = !S.downloads;
+  $("#btn-novo").hidden = !ok || !S.canWrite;
+  if (!ok) return;
   if (S.view === "painel") renderPainel();
   if (S.view === "processos") renderProcessos();
   if (S.view === "equipe") renderEquipe();
@@ -630,11 +688,73 @@ async function gravar(fn, ok) {
   S.chain = run.catch(() => {});
   try { await run; if (ok) toast(ok); return true; }
   catch (e) {
-    const msg = e?.code === "quota_exceeded" ? "O banco de dados está cheio. Fale com quem administra o sistema." :
-      e?.code === "invalid_argument" ? "Você não tem permissão para alterar os dados deste sistema." : "Não foi possível salvar. Verifique a conexão e tente de novo.";
-    if (e?.code === "invalid_argument") { S.canWrite = false; render(); }
+    const negado = e?.code === "42501" || e?.code === "sem_permissao";
+    const msg = negado ? "Sua conta não tem permissão para alterar os dados. Peça acesso de editor." :
+      e?.code === "PGRST301" || /JWT/i.test(e?.message || "") ? "Sua sessão expirou. Entre de novo." :
+      e?.code === "23514" ? "Algum campo tem um valor que o sistema não aceita (ex.: data de fim antes do início)." :
+      "Não foi possível salvar. Verifique a conexão e tente de novo.";
+    if (negado) { S.canWrite = false; render(); }
+    console.error(e);
     toast(msg, true); return false;
   }
+}
+
+/* ---------- banco de dados (Supabase) ---------- */
+const camel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+const snake = (s) => s.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
+const deDb = (row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [camel(k), v]));
+const paraDb = (obj) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [snake(k), v]));
+let sb = null;
+const Store = {
+  async carregar(tabela) {
+    const rows = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await sb.from(tabela).select("*").order("id").range(de, de + 999);
+      if (error) throw error;
+      rows.push(...data);
+      if (data.length < 1000) break;
+    }
+    return rows.map(deDb);
+  },
+  async alterar(tabela, id, campos) {
+    const { data, error } = await sb.from(tabela).update(paraDb(campos)).eq("id", id).select("id");
+    if (error) throw error;
+    if (!data.length) throw { code: "sem_permissao" };
+    await recarregar(tabela);
+  },
+  async incluir(tabela, obj) {
+    const { data, error } = await sb.from(tabela).insert(paraDb(obj)).select().single();
+    if (error) throw error;
+    await recarregar(tabela);
+    return deDb(data);
+  },
+  async gravar(tabela, obj) {
+    const { error } = await sb.from(tabela).upsert(paraDb(obj));
+    if (error) throw error;
+    await recarregar(tabela);
+  },
+  async excluir(tabela, id) {
+    const { data, error } = await sb.from(tabela).delete().eq("id", id).select("id");
+    if (error) throw error;
+    if (!data.length) throw { code: "sem_permissao" };
+    await recarregar(tabela);
+  }
+};
+async function recarregar(tabela) {
+  const rows = await Store.carregar(tabela);
+  if (tabela === "processos") {
+    S.procs = new Map(rows.map((r) => [r.id, r]));
+    S.loaded = true;
+    if ($("#dlg").open) { renderAnd(); chips(); if (S.editId) $("#dlg-meta").textContent = `Última movimentação em ${fmt(S.procs.get(S.editId)?.atualizadoEm)}`; }
+  }
+  if (tabela === "ferias") S.ferias = rows.map((r) => ({ _id: r.id, ...r }));
+  if (tabela === "equipe") S.equipe = rows.map((r) => ({ _id: r.id, ...r }));
+  render();
+}
+const pendentes = {};
+function agendar(tabela) {
+  clearTimeout(pendentes[tabela]);
+  pendentes[tabela] = setTimeout(() => recarregar(tabela).catch((e) => console.error(e)), 400);
 }
 async function addAndamento() {
   const texto = $("#a-texto").value.trim(), data = $("#a-data").value || hoje();
@@ -643,14 +763,14 @@ async function addAndamento() {
   if (!S.editId) { S.draftAnd.push(novo); $("#a-texto").value = ""; renderAnd(); chips(); return; }
   const id = S.editId, cur = S.procs.get(id);
   const atual = [cur.atualizadoEm || "", data].sort().pop();
-  const ok = await gravar(() => S.db.doc("processos/" + id).update({ andamentos: [...(cur.andamentos || []), novo], atualizadoEm: atual }), "Andamento registrado");
+  const ok = await gravar(() => Store.alterar("processos", id, { andamentos: [...(cur.andamentos || []), novo], atualizadoEm: atual }), "Andamento registrado");
   if (ok) { $("#a-texto").value = ""; }
 }
 async function delAndamento(i, btn) {
   if (btn.dataset.confirm !== "1") { btn.dataset.confirm = "1"; btn.textContent = "Confirmar"; btn.classList.add("danger"); return; }
   if (!S.editId) { S.draftAnd.splice(i, 1); renderAnd(); return; }
   const id = S.editId, cur = S.procs.get(id);
-  await gravar(() => S.db.doc("processos/" + id).update({ andamentos: (cur.andamentos || []).filter((_, k) => k !== i) }), "Andamento removido");
+  await gravar(() => Store.alterar("processos", id, { andamentos: (cur.andamentos || []).filter((_, k) => k !== i) }), "Andamento removido");
 }
 async function salvar() {
   const tipo = $("#p-tipo").value, chegada = $("#p-cheg").value;
@@ -666,25 +786,27 @@ async function salvar() {
     if (sit === "Finalizado" && cur.situacao !== "Finalizado") campos.finalizadoEm = t;
     if (sit !== "Finalizado" && cur.finalizadoEm) campos.finalizadoEm = null;
     campos.atualizadoEm = t;
-    if (await gravar(() => S.db.doc("processos/" + id).update(campos), "Alterações salvas")) $("#dlg").close();
+    if (await gravar(() => Store.alterar("processos", id, campos), "Alterações salvas")) $("#dlg").close();
   } else {
-    const seq = Math.max(0, ...[...S.procs.values()].map((p) => +p.seq || 0)) + 1;
-    const doc = { seq, ...campos, andamentos: S.draftAnd, atualizadoEm: [chegada, ...S.draftAnd.map((a) => a.data)].sort().pop(),
-      finalizadoEm: sit === "Finalizado" ? t : null, criadoEm: t, origem: "sistema" };
-    const ref = S.db.collection("processos").doc();
-    if (await gravar(() => ref.set(doc), `Processo ${seq} cadastrado`)) $("#dlg").close();
+    // o número sequencial (Id) é gerado pelo banco, sem risco de duas pessoas pegarem o mesmo
+    const doc = { ...campos, andamentos: S.draftAnd, atualizadoEm: [chegada, ...S.draftAnd.map((a) => a.data)].sort().pop(),
+      finalizadoEm: sit === "Finalizado" ? t : null, origem: "sistema" };
+    let novo;
+    if (await gravar(async () => { novo = await Store.incluir("processos", doc); })) { toast(`Processo ${novo.seq} cadastrado`); $("#dlg").close(); }
   }
 }
 
 /* ---------- exportação ---------- */
-async function exportar(L, nome) {
-  if (!S.downloads) return;
+function exportar(L, nome) {
   const c = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const head = ["Id", "Tipo", "Números", "Responsável", "Chegada", "Situação", "Prazo", "Última movimentação", "Dias parado", "Descrição", "Andamentos"];
   const linhas = L.map((x) => [x.p.seq, x.p.tipo, (x.p.numeros || []).map((n) => n.valor).join(" e "), x.p.responsavel, fmt(x.p.chegada), x.p.situacao,
     x.p.prazo ? fmt(x.p.prazo) : "", fmt(x.ultima), x.parado ?? "", x.p.descricao, (x.p.andamentos || []).map((a) => fmt(a.data) + ": " + a.texto).join(" | ")].map(c).join(";"));
-  try { await S.downloads.save({ filename: `${nome}-${hoje()}.csv`, data: "﻿" + [head.map(c).join(";"), ...linhas].join("\r\n") }); toast("Arquivo salvo"); }
-  catch (e) { if (e?.code !== "declined") toast("Não foi possível gerar o arquivo nesta visualização.", true); }
+  const blob = new Blob(["﻿" + [head.map(c).join(";"), ...linhas].join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = `${nome}-${hoje()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 /* ---------- utilidades de interface ---------- */
@@ -711,7 +833,7 @@ document.addEventListener("click", (e) => {
   const df = e.target.closest("[data-del-ferias]");
   if (df) {
     if (df.dataset.confirm !== "1") { df.dataset.confirm = "1"; df.textContent = "Confirmar"; return; }
-    gravar(() => S.db.doc("ferias/" + df.dataset.delFerias).delete(), "Período removido");
+    gravar(() => Store.excluir("ferias", df.dataset.delFerias), "Período removido");
   }
 });
 $("#btn-novo").addEventListener("click", () => abrir(null));
@@ -739,14 +861,14 @@ $("#form-pessoa").addEventListener("submit", (e) => {
   e.preventDefault();
   const nome = $("#np-nome").value.trim(); if (!nome) return;
   const id = norm(nome).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "pessoa";
-  gravar(() => S.db.doc("equipe/" + id).set({ nome, ativo: true }), `${nome} adicionado à equipe`).then((ok) => ok && ($("#np-nome").value = ""));
+  gravar(() => Store.gravar("equipe", { id, nome, ativo: true }), `${nome} adicionado à equipe`).then((ok) => ok && ($("#np-nome").value = ""));
 });
 $("#form-ferias").addEventListener("submit", (e) => {
   e.preventDefault();
   const pessoa = $("#nf-pessoa").value, inicio = $("#nf-ini").value, fim = $("#nf-fim").value, tipo = $("#nf-tipo").value.trim() || "Férias";
   if (!pessoa || !inicio || !fim) { toast("Informe pessoa, início e fim.", true); return; }
   if (fim < inicio) { toast("A data de fim é anterior ao início.", true); return; }
-  gravar(() => S.db.collection("ferias").add({ pessoa, inicio, fim, tipo }), "Período incluído").then((ok) => { if (ok) { $("#nf-ini").value = $("#nf-fim").value = $("#nf-tipo").value = ""; } });
+  gravar(() => Store.incluir("ferias", { pessoa, inicio, fim, tipo }), "Período incluído").then((ok) => { if (ok) { $("#nf-ini").value = $("#nf-fim").value = $("#nf-tipo").value = ""; } });
 });
 let rT; addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => S.view === "painel" && renderPainel(), 150); });
 addEventListener("hashchange", () => { const h = location.hash.slice(1); if (["painel", "processos", "equipe"].includes(h) && h !== S.view) { S.view = h; render(); } });
@@ -757,22 +879,85 @@ addEventListener("hashchange", () => { const h = location.hash.slice(1); if (["p
   if (["painel", "processos", "equipe"].includes(h)) S.view = h;
   try { const p = localStorage.getItem("projur.periodo"); if (p) { S.periodo = p; $("#periodo").value = p; } } catch (e) {}
   render();
-  if (!window.claude?.use) { status("Abra esta página pelo claude.ai para acessar os processos cadastrados.", true); return; }
-  const [db, user, downloads] = await Promise.all([claude.use("db"), claude.use("user"), claude.use("downloads")]);
-  if (!db) { status("O banco de dados não está disponível nesta visualização. Entre no claude.ai com sua conta e abra o link novamente.", true); S.canWrite = false; render(); return; }
-  S.db = db; S.downloads = downloads;
-  const pode = user ? await user.can("data.write") : null;
-  S.canWrite = pode !== false;
-  if (!S.canWrite) status("Você está em modo de consulta: pode ver e exportar, mas não alterar.");
-  const espera = setTimeout(() => { if (!S.loaded) status("Os dados ainda não responderam. Verifique a conexão; a página continua tentando.", true); }, 10000);
-  const erro = (e) => { clearTimeout(espera); if (e?.code !== "revoked") status("A conexão com o banco de dados foi interrompida. Recarregue a página para tentar de novo.", true); };
-  db.collection("processos").onSnapshot((snap) => {
-    S.procs = new Map(snap.docs.map((d) => [d.id, d.data()]));
-    if (!snap.metadata.fromCache) { S.loaded = true; clearTimeout(espera); if ($("#status").classList.contains("crit")) status(""); }
-    render();
-    if ($("#dlg").open) { renderAnd(); chips(); if (S.editId) $("#dlg-meta").textContent = `Última movimentação em ${fmt(S.procs.get(S.editId)?.atualizadoEm)}`; }
-  }, erro);
-  db.collection("ferias").onSnapshot((snap) => { S.ferias = snap.docs.map((d) => ({ _id: d.id, ...d.data() })); render(); }, erro);
-  db.collection("equipe").onSnapshot((snap) => { S.equipe = snap.docs.map((d) => ({ _id: d.id, ...d.data() })); render(); }, erro);
+  const cfg = window.PROJUR_CONFIG || {};
+  if (!window.supabase || !cfg.supabaseUrl || !cfg.supabaseAnonKey || /COLE_AQUI/.test(cfg.supabaseUrl + cfg.supabaseAnonKey)) {
+    status("O sistema ainda não foi ligado ao banco de dados: preencha o arquivo config.js com o endereço e a chave pública do projeto Supabase.", true);
+    return;
+  }
+  sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+  sb.auth.onAuthStateChange((evento, sessao) => {
+    if (evento === "PASSWORD_RECOVERY") { S.email = sessao?.user?.email || ""; S.auth = "senha"; render(); return; }
+    if (evento === "SIGNED_OUT") { sair(true); return; }
+    if (evento === "SIGNED_IN" && S.auth !== "ok" && S.auth !== "senha") setTimeout(() => entrar(sessao), 0);
+  });
+  const { data } = await sb.auth.getSession();
+  if (data.session) entrar(data.session);
+  else if (S.auth === "carregando") { S.auth = "login"; render(); }
 })();
+
+let canal = null;
+async function entrar(sessao) {
+  if (S.auth === "ok" || !sessao) return;
+  S.email = sessao.user.email || "";
+  status("Carregando processos…");
+  const { data, error } = await sb.from("membros").select("papel").maybeSingle();
+  if (error) { status("Não foi possível verificar seu acesso. Recarregue a página.", true); return; }
+  if (!data) { status(""); S.auth = "negado"; $("#n-email").textContent = S.email; render(); return; }
+  S.canWrite = data.papel === "editor";
+  S.auth = "ok";
+  try {
+    await Promise.all(["processos", "equipe", "ferias"].map(recarregar));
+    status(S.canWrite ? "" : "Você está em modo de consulta: pode ver e exportar, mas não alterar.");
+  } catch (e) {
+    console.error(e); status("Não foi possível carregar os dados. Verifique a conexão e recarregue a página.", true);
+  }
+  canal = sb.channel("projur");
+  for (const t of ["processos", "equipe", "ferias"]) canal.on("postgres_changes", { event: "*", schema: "public", table: t }, () => agendar(t));
+  canal.subscribe();
+}
+async function sair(jaSaiu) {
+  if (canal) { sb.removeChannel(canal); canal = null; }
+  if (!jaSaiu) await sb.auth.signOut();
+  if ($("#dlg").open) $("#dlg").close();
+  Object.assign(S, { procs: new Map(), ferias: [], equipe: [], loaded: false, canWrite: false, auth: "login", email: "" });
+  status(""); render();
+}
+$("#v-login").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = $("#l-msg"), btn = $("#l-entrar");
+  btn.disabled = true; msg.className = "hint"; msg.textContent = "Entrando…";
+  const { data, error } = await sb.auth.signInWithPassword({ email: $("#l-email").value.trim(), password: $("#l-senha").value });
+  btn.disabled = false;
+  if (error) { msg.className = "hint warn"; msg.textContent = /invalid/i.test(error.message) ? "E-mail ou senha incorretos." : "Não foi possível entrar. Verifique a conexão e tente de novo."; return; }
+  msg.textContent = ""; $("#l-senha").value = "";
+  entrar(data.session);
+});
+$("#l-esqueci").addEventListener("click", async () => {
+  const email = $("#l-email").value.trim(), msg = $("#l-msg");
+  if (!email) { msg.className = "hint warn"; msg.textContent = "Digite seu e-mail acima e clique de novo em “Esqueci minha senha”."; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  msg.className = "hint" + (error ? " warn" : "");
+  msg.textContent = error ? "Não foi possível enviar o e-mail agora. Tente de novo em alguns minutos." : "Se este e-mail tiver acesso, chegará uma mensagem com o link para definir uma nova senha.";
+});
+$("#v-senha").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nova = $("#s-nova").value;
+  if (nova !== $("#s-conf").value) { toast("As duas senhas não são iguais.", true); return; }
+  const { error } = await sb.auth.updateUser({ password: nova });
+  if (error) { toast(/should be different/i.test(error.message) ? "A nova senha precisa ser diferente da atual." : "Não foi possível trocar a senha. Use pelo menos 8 caracteres.", true); return; }
+  $("#s-nova").value = $("#s-conf").value = "";
+  toast("Senha alterada");
+  try { history.replaceState(null, "", location.pathname + "#" + S.view); } catch (x) {}
+  const { data } = await sb.auth.getSession();
+  S.auth = "carregando"; entrar(data.session);
+});
+$("#s-cancelar").addEventListener("click", async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session) { S.auth = "carregando"; entrar(data.session); } else { S.auth = "login"; render(); }
+});
+$("#btn-trocar-senha").addEventListener("click", () => { S.auth = "senha"; render(); });
+$("#btn-sair").addEventListener("click", () => sair(false));
+$("#n-sair").addEventListener("click", () => sair(false));
 </script>
+</body>
+</html>

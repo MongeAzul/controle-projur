@@ -1,4 +1,4 @@
-<#
+﻿<#
   Converte a planilha "Controle PROJUR 2026.xlsx" em documentos JSON para o banco de dados do sistema.
 
   Uso:
