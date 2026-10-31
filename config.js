@@ -4,6 +4,6 @@
 // regras de acesso de supabase/schema.sql (só e-mails cadastrados em "membros" veem algo).
 // NUNCA coloque aqui a chave "service_role".
 window.PROJUR_CONFIG = {
-  supabaseUrl: "COLE_AQUI_A_URL_DO_PROJETO",       // ex.: https://abcdefghijkl.supabase.co
-  supabaseAnonKey: "COLE_AQUI_A_CHAVE_ANON_PUBLIC" // começa com eyJ... ou sb_publishable_...
+  supabaseUrl: "https://twdalfjcgbquhvhqmxuu.supabase.co",
+  supabaseAnonKey: "sb_publishable_SE4aDoSYtOH_uP2zapVySw_lCdMOwBL"
 };
