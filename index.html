@@ -112,6 +112,23 @@ tbody tr.click:hover td { background: var(--accent-wash); }
 tr:last-child td { border-bottom: 0; }
 td.desc { min-width: 260px; max-width: 480px; }
 td.desc div { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* tabela de processos: colunas com largura ajustável (arrastar a borda do cabeçalho) */
+#tabela-proc { table-layout: fixed; width: max-content; min-width: 100%; }
+#tabela-proc th { position: sticky; overflow: hidden; text-overflow: ellipsis; }
+#tabela-proc td { overflow: hidden; overflow-wrap: anywhere; }
+#tabela-proc td.desc { min-width: 0; max-width: none; }
+#tabela-proc td.desc div { -webkit-line-clamp: var(--linhas, 2); }
+#tabela-proc.completo td.desc div { display: block; -webkit-line-clamp: unset; white-space: pre-wrap; }
+#tabela-proc .nums span { white-space: normal; }
+.resizer { position: absolute; top: 0; right: 0; bottom: 0; width: 9px; cursor: col-resize; touch-action: none; z-index: 1; }
+.resizer::after { content: ""; position: absolute; top: 20%; bottom: 20%; right: 3px; width: 2px; border-radius: 1px; background: var(--line); }
+.resizer:hover::after, .resizer.ativo::after { background: var(--accent); top: 0; bottom: 0; }
+body.redimensionando, body.redimensionando * { cursor: col-resize !important; user-select: none !important; }
+.listbar { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; margin-bottom: 8px; }
+.listbar .count { margin: 0; }
+.listtools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.listtools .inline { font-size: 13px; color: var(--muted); }
+.listtools select { width: auto; padding: 4px 8px; font-size: 13px; }
 td .sub { color: var(--muted); font-size: 12px; }
 .nums { display: flex; flex-direction: column; gap: 1px; font-family: var(--f-mono); font-size: 12px; }
 .nums span { white-space: nowrap; }
@@ -276,11 +293,27 @@ input[type="email"], input[type="password"] { border: 1px solid var(--line); bac
       <label class="field"><span>Situação</span><select id="f-sit"></select></label>
       <button type="button" class="btn ghost" id="f-limpar">Limpar</button>
     </div>
-    <p class="count" id="count"></p>
-    <div class="tablewrap"><table>
+    <div class="listbar">
+      <p class="count" id="count"></p>
+      <div class="listtools">
+        <label class="inline" for="f-linhas">Descrição:</label>
+        <select id="f-linhas">
+          <option value="2">2 linhas</option>
+          <option value="4">4 linhas</option>
+          <option value="8">8 linhas</option>
+          <option value="0">Texto completo</option>
+        </select>
+        <button type="button" class="btn ghost sm" id="f-larguras" title="Volta as colunas ao tamanho original">Restaurar colunas</button>
+      </div>
+    </div>
+    <div class="tablewrap"><table id="tabela-proc">
+      <colgroup>
+        <col data-col="seq"><col data-col="tipo"><col data-col="numeros"><col data-col="responsavel">
+        <col data-col="chegada"><col data-col="descricao"><col data-col="situacao"><col data-col="ultima">
+      </colgroup>
       <thead><tr>
-        <th data-sort="seq">Id</th><th data-sort="tipo">Tipo</th><th>Números</th><th data-sort="responsavel">Responsável</th>
-        <th data-sort="chegada">Chegada</th><th>Descrição</th><th data-sort="situacao">Situação</th><th data-sort="parado">Última mov.</th>
+        <th data-sort="seq"><span class="lbl">Id</span></th><th data-sort="tipo"><span class="lbl">Tipo</span></th><th><span class="lbl">Números</span></th><th data-sort="responsavel"><span class="lbl">Responsável</span></th>
+        <th data-sort="chegada"><span class="lbl">Chegada</span></th><th><span class="lbl">Descrição</span></th><th data-sort="situacao"><span class="lbl">Situação</span></th><th data-sort="parado"><span class="lbl">Última mov.</span></th>
       </tr></thead>
       <tbody id="lista"></tbody>
     </table></div>
@@ -589,8 +622,9 @@ function renderProcessos() {
   opts($("#f-resp"), [...pessoas().map((p) => [p, p]), ["__sem", "Sem responsável"]], S.f.resp, "Todos");
   opts($("#f-sit"), [["abertos", "Em aberto (todas)"], ...SITS.map((s) => [s, s])], S.f.sit, "Todas");
   if ($("#f-q").value !== S.f.q) $("#f-q").value = S.f.q;
-  document.querySelectorAll("th[data-sort]").forEach((th) => {
-    th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (th.dataset.sort === S.sort.k ? (S.sort.dir > 0 ? " ▲" : " ▼") : "");
+  document.querySelectorAll("th[data-sort] .lbl").forEach((l) => {
+    const k = l.parentElement.dataset.sort;
+    l.textContent = l.textContent.replace(/ [▲▼]$/, "") + (k === S.sort.k ? (S.sort.dir > 0 ? " ▲" : " ▼") : "");
   });
   const L = filtrados();
   $("#count").textContent = S.procs.size ? `${L.length} de ${S.procs.size} processos` : "";
@@ -853,6 +887,47 @@ $("#btn-exp-lista").addEventListener("click", () => exportar(filtrados(), "proju
 let qT;
 $("#f-q").addEventListener("input", (e) => { clearTimeout(qT); qT = setTimeout(() => { S.f.q = e.target.value; renderProcessos(); }, 150); });
 for (const [id, k] of [["#f-tipo", "tipo"], ["#f-resp", "resp"], ["#f-sit", "sit"]]) $(id).addEventListener("change", (e) => { S.f[k] = e.target.value; renderProcessos(); });
+/* ---------- largura das colunas e linhas da descrição (lembradas neste navegador) ---------- */
+const LARGURAS_PADRAO = { seq: 60, tipo: 160, numeros: 250, responsavel: 130, chegada: 100, descricao: 420, situacao: 140, ultima: 110 };
+function lerPref(chave, padrao) { try { const v = localStorage.getItem(chave); return v ? JSON.parse(v) : padrao; } catch (e) { return padrao; } }
+function gravarPref(chave, valor) { try { localStorage.setItem(chave, JSON.stringify(valor)); } catch (e) {} }
+let larguras = { ...LARGURAS_PADRAO, ...lerPref("projur.larguras", {}) };
+function aplicarLarguras() {
+  document.querySelectorAll("#tabela-proc col").forEach((c) => (c.style.width = larguras[c.dataset.col] + "px"));
+}
+function aplicarLinhas(n) {
+  const t = $("#tabela-proc");
+  t.classList.toggle("completo", n === 0);
+  t.style.setProperty("--linhas", n || 2);
+  $("#f-linhas").value = String(n);
+}
+document.querySelectorAll("#tabela-proc thead th").forEach((th, i) => {
+  const col = document.querySelectorAll("#tabela-proc col")[i], r = document.createElement("span");
+  r.className = "resizer"; r.title = "Arraste para mudar a largura. Clique duas vezes para voltar ao tamanho original.";
+  th.appendChild(r);
+  r.addEventListener("click", (e) => e.stopPropagation());
+  r.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+    larguras[col.dataset.col] = LARGURAS_PADRAO[col.dataset.col]; aplicarLarguras(); gravarPref("projur.larguras", larguras);
+  });
+  r.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const x0 = e.clientX, w0 = col.getBoundingClientRect().width || larguras[col.dataset.col];
+    r.setPointerCapture(e.pointerId); r.classList.add("ativo"); document.body.classList.add("redimensionando");
+    const mover = (ev) => { larguras[col.dataset.col] = Math.max(48, Math.round(w0 + ev.clientX - x0)); col.style.width = larguras[col.dataset.col] + "px"; };
+    const soltar = () => {
+      r.removeEventListener("pointermove", mover); r.removeEventListener("pointerup", soltar); r.removeEventListener("pointercancel", soltar);
+      r.classList.remove("ativo"); document.body.classList.remove("redimensionando");
+      gravarPref("projur.larguras", larguras);
+    };
+    r.addEventListener("pointermove", mover); r.addEventListener("pointerup", soltar); r.addEventListener("pointercancel", soltar);
+  });
+});
+$("#f-larguras").addEventListener("click", () => { larguras = { ...LARGURAS_PADRAO }; aplicarLarguras(); gravarPref("projur.larguras", larguras); });
+$("#f-linhas").addEventListener("change", (e) => { const n = +e.target.value; aplicarLinhas(n); gravarPref("projur.linhas", n); });
+aplicarLarguras();
+aplicarLinhas(lerPref("projur.linhas", 2));
+
 $("#f-limpar").addEventListener("click", () => { S.f = { q: "", tipo: "", resp: "", sit: "" }; renderProcessos(); });
 document.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
   const k = th.dataset.sort; S.sort = { k, dir: S.sort.k === k ? -S.sort.dir : (k === "seq" || k === "chegada" || k === "parado" ? -1 : 1) }; renderProcessos();
