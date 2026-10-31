@@ -928,10 +928,21 @@ $("#v-login").addEventListener("submit", async (e) => {
   btn.disabled = true; msg.className = "hint"; msg.textContent = "Entrando…";
   const { data, error } = await sb.auth.signInWithPassword({ email: $("#l-email").value.trim(), password: $("#l-senha").value });
   btn.disabled = false;
-  if (error) { msg.className = "hint warn"; msg.textContent = /invalid/i.test(error.message) ? "E-mail ou senha incorretos." : "Não foi possível entrar. Verifique a conexão e tente de novo."; return; }
+  if (error) { console.error(error); msg.className = "hint warn"; msg.textContent = erroLogin(error); return; }
   msg.textContent = ""; $("#l-senha").value = "";
   entrar(data.session);
 });
+function erroLogin(e) {
+  const code = e.code || "", m = e.message || "";
+  if (code === "invalid_credentials" || /invalid login/i.test(m)) return "E-mail ou senha incorretos.";
+  if (code === "email_not_confirmed" || /not confirmed/i.test(m))
+    return "Este e-mail ainda não foi confirmado. No Supabase, abra Authentication > Users, clique no usuário e confirme o e-mail (ou recrie marcando “Auto Confirm User”).";
+  if (/rate_limit/.test(code) || e.status === 429) return "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.";
+  if (code === "user_banned") return "Este usuário está bloqueado no Supabase.";
+  if (e.name === "AuthRetryableFetchError" || !e.status || /fetch|network/i.test(m))
+    return "O navegador não conseguiu falar com o servidor do Supabase (supabase.co). Se estiver na rede da Câmara, ela pode estar bloqueando esse endereço: teste em outra rede, como a do celular.";
+  return `Não foi possível entrar. Detalhe técnico: ${m || code || "erro " + e.status}`;
+}
 $("#l-esqueci").addEventListener("click", async () => {
   const email = $("#l-email").value.trim(), msg = $("#l-msg");
   if (!email) { msg.className = "hint warn"; msg.textContent = "Digite seu e-mail acima e clique de novo em “Esqueci minha senha”."; return; }
