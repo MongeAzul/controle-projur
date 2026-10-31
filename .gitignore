@@ -1,0 +1,11 @@
+# Dados reais de processos (LGPD): nunca versionar
+seed/
+dados/
+*.xlsx
+*.xls
+*.csv
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
